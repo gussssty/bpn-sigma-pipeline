@@ -1,0 +1,83 @@
+name: SIGMA Uptime Pipeline
+
+on:
+  # Diariamente a las 10:00 AM Argentina (13:00 UTC)
+  schedule:
+    - cron: '0 13 * * *'
+  
+  # Disparo manual
+  workflow_dispatch:
+
+jobs:
+  uptime-pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@latest
+      
+      - name: Install ChromeDriver
+        uses: nanasess/setup-chromedriver@master
+      
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          SIGMA_USERNAME=${{ secrets.SIGMA_USERNAME }}
+          SIGMA_PASSWORD=${{ secrets.SIGMA_PASSWORD }}
+          LOG_LEVEL=INFO
+          SELENIUM_HEADLESS=true
+          EOF
+      
+      - name: Run SIGMA Uptime Pipeline
+        run: python -m src.pipelines.uptime_pipeline
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+      
+      - name: Upload database artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: uptime-database
+          path: data/uptime/uptime_sigma.db
+          retention-days: 30
+      
+      - name: Upload logs artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pipeline-logs
+          path: logs/
+          retention-days: 7
+      
+      - name: Commit and push data
+        if: success()
+        run: |
+          git config user.name "SIGMA Uptime Bot"
+          git config user.email "bot@bpn.local"
+          git add data/uptime/*.csv
+          git commit -m "chore: update SIGMA uptime data - $(date '+%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
+          git push
+      
+      - name: Log summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "SIGMA Uptime Pipeline Execution Summary"
+          echo "=========================================="
+          echo "Database: data/uptime/uptime_sigma.db"
+          echo "Exports: data/uptime/*.csv"
+          echo "Logs: logs/uptime_extractor.log, logs/uptime_consolidator.log"
+          echo "=========================================="
