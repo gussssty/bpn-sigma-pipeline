@@ -48,7 +48,7 @@ jobs:
       
       - name: Upload database artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: uptime-database
           path: data/uptime/uptime_sigma.db
@@ -56,7 +56,7 @@ jobs:
       
       - name: Upload logs artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pipeline-logs
           path: logs/
